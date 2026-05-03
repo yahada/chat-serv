@@ -7,7 +7,8 @@ namespace chat
   class Session: public std::enable_shared_from_this< Session > {
   public:
     Session(tcp::socket&& socket);
-    void post(const std::string& message);
+    void post(std::shared_ptr< Session > session, const std::string& message);
+    void informationMsg(const std::string& message);
     void start(message_handler&& on_message, error_handler&& on_error);
     tcp::endpoint id(error_code error);
   private:

@@ -17,30 +17,41 @@ void chat::Server::async_accept()
     }
 
     auto client = std::make_shared<Session>(std::move(socket));
-    std::stringstream message;
+    std::stringstream id;
     error_code error_id;
-    message << "[Welcome to chat, " << client->id(error_id) << "]\n\r";
-    // client->post(message.str());
-    post(nullptr, "[We have a newcomer]\n\r");
+    id << client->id(error_id).port();
+    client->informationMsg("[Welcome to chat, User" + id.str() + "]");
+    informationPost("[User" + id.str() + " has joined the chat]");
 
     clients_.insert(client);
 
     client->start(
-    [this, shared = client](const std::string& msg)
+    [this, clientVar = client](const std::string& msg)
     {
-      executeFunc(shared, msg);
+      executeFunc(clientVar, msg);
     },
     [this, weak = std::weak_ptr<Session>(client)]
     {
       if (auto shared = weak.lock(); shared && clients_.erase(shared))
       {
-        post(nullptr, "[We are one less]\n\r");
+        std::stringstream id;
+        error_code error_id;
+        id << shared->id(error_id).port();
+        informationPost("[User" + id.str() + " has left the chat]");
       }
     });
     async_accept();
   });
 }
 
+
+void chat::Server::informationPost(const std::string& message)
+{
+  for (auto& client : clients_)
+  {
+    client->informationMsg(message);
+  }
+}
 void chat::Server::post(std::shared_ptr< Session > session, const std::string& message)
 {
   for (auto& client : clients_)

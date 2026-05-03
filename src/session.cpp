@@ -1,13 +1,15 @@
 #include "session.hpp"
+using std::placeholders::_1;
+using std::placeholders::_2;
 
 chat::Session::Session(tcp::socket&& socket):
-  socket(std::move(socket))
+  socket_(std::move(socket))
 {}
 
 void chat::Session::post(const std::string& message)
 {
-  bool idle = outgoing.empty();
-  outgoing.push(message);
+  bool idle = outgoing_.empty();
+  outgoing_.push(message);
 
   if (idle)
   {
@@ -17,57 +19,75 @@ void chat::Session::post(const std::string& message)
 
 void chat::Session::start(message_handler &&on_message, error_handler &&on_error)
 {
-  on_message = std::move(on_message);
-  on_error = std::move(on_error);
+  on_message_ = std::move(on_message);
+  on_error_ = std::move(on_error);
   async_read();
 }
 
 void chat::Session::async_read()
 {
-  io::async_read_until(socket, streambuf, "\n", std::bind(&Session::on_read, shared_from_this(), _1, _2));
-}
+  auto self = shared_from_this();
 
-void chat::Session::on_read(error_code error, std::size_t bytes_transferred)
-{
-  if (!error)
-  {
-    std::stringstream message;
-    message << socket.remote_endpoint(error) << ": " << std::istream(&streambuf).rdbuf();
-    streambuf.consume(bytes_transferred);
-    on_message(message.str());
-    async_read();
-  }
-  else
-  {
-    socket.close(error);
-    on_error();
-  }
+  boost::asio::async_read_until(
+    socket_,
+    streambuf_,
+    "\n",
+    [this, self](error_code ec, size_t bytes)
+    {
+      on_read(ec, bytes);
+    }
+  );
 }
 
 void chat::Session::async_write()
 {
-  io::async_write(socket, io::buffer(outgoing.front()), std::bind(&Session::on_write, shared_from_this(), _1, _2));
-}
+  auto self = shared_from_this();
 
-void chat::Session::on_write(error_code error, std::size_t bytes_transferred)
+  boost::asio::async_write(
+    socket_,
+    boost::asio::buffer(outgoing_.front()),
+    [this, self](error_code ec, size_t bytes)
+    {
+      on_write(ec, bytes);
+    }
+  );
+}
+void chat::Session::on_read(error_code error, size_t bytes_transferred)
 {
   if (!error)
   {
-    outgoing.pop();
+    std::stringstream message;
+    message << socket_.remote_endpoint(error) << ": " << std::istream(&streambuf_).rdbuf();
+    streambuf_.consume(bytes_transferred);
+    on_message_(message.str());
+    async_read();
+  }
+  else
+  {
+    socket_.close(error);
+    on_error_();
+  }
+}
 
-    if (!outgoing.empty())
+void chat::Session::on_write(error_code error, size_t)
+{
+  if (!error)
+  {
+    outgoing_.pop();
+
+    if (!outgoing_.empty())
     {
       async_write();
     }
   }
   else
   {
-    socket.close(error);
-    on_error();
+    socket_.close(error);
+    on_error_();
   }
 }
 
-tcp::endpoint chat::Session::id()
+tcp::endpoint chat::Session::id(error_code error)
 {
-  return socket.remote_endpoint();
+  return socket_.remote_endpoint(error);
 }

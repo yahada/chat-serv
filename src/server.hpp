@@ -13,10 +13,9 @@ namespace chat
     void send(const std::string& message, std::shared_ptr< Session > session);
     void showUsers(std::shared_ptr< Session > session);
   private:
-    io::io_context& io_context;
-    tcp::acceptor acceptor;
-    std::optional<tcp::socket> socket;
-    std::unordered_set< std::shared_ptr< Session > > clients;
+    io::io_context& io_context_;
+    tcp::acceptor acceptor_;
+    std::unordered_set< std::shared_ptr< Session > > clients_;
   };
 }
 

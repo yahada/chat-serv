@@ -20,8 +20,8 @@ void chat::Server::async_accept()
     std::stringstream id;
     error_code error_id;
     id << client->id(error_id).port();
-    client->informationMsg("[Welcome to chat, User" + id.str() + "]");
-    informationPost("[User" + id.str() + " has joined the chat]");
+    client->informationMsg("[INFO] Welcome to chat, User" + id.str());
+    informationPost("[INFO] User" + id.str() + " has joined the chat");
 
     clients_.insert(client);
 
@@ -37,7 +37,7 @@ void chat::Server::async_accept()
         std::stringstream id;
         error_code error_id;
         id << shared->id(error_id).port();
-        informationPost("[User" + id.str() + " has left the chat]");
+        informationPost("[INFO] User" + id.str() + " has left the chat");
       }
     });
     async_accept();
@@ -45,19 +45,55 @@ void chat::Server::async_accept()
 }
 
 
-void chat::Server::informationPost(const std::string& message)
+void chat::Server::informationPost(const std::string& msg)
 {
   for (auto& client : clients_)
   {
-    client->informationMsg(message);
+    client->informationMsg(msg);
   }
 }
-void chat::Server::post(std::shared_ptr< Session > session, const std::string& message)
+void chat::Server::post(std::shared_ptr< Session > session, const std::string& msg)
 {
+  if (msg.empty())
+  {
+    session->informationMsg("[WARN] Usage: post <msg>");
+    return;
+  }
   for (auto& client : clients_)
   {
-    client->post(session, message);
+    if (client != session)
+    {
+      client->post(session, msg);
+    }
   }
+  session->informationMsg("[DONE] The message was sent to everyone");
+}
+
+void chat::Server::send(std::shared_ptr< Session > session, const std::string& msg)
+{
+  std::vector< std::string > params = splitWhitespace(msg);
+  if (params.size() < 2)
+  {
+    session->informationMsg("[WARN] Usage: send <User's port> <msg>");
+    return;
+  }
+
+  std::string clientId = params[0];
+  std::string msgText = getStrParams(params, 1); 
+
+  for (auto& client: clients_)
+  {
+    std::stringstream id;
+    error_code error;
+    id << client->id(error).port();
+    if (id.str() == clientId)
+    {
+      client->post(session, msgText);
+      session->informationMsg("[DONE] The message was sent to User" + id.str());
+      return;
+    }
+  }
+  session->informationMsg("[WARN] Can't find User" + clientId);
 }
 
 std::vector< std::string > chat::Server::splitWhitespace(const std::string& msg)
@@ -73,33 +109,40 @@ std::vector< std::string > chat::Server::splitWhitespace(const std::string& msg)
   return result;
 }
 
+std::string chat::Server::getStrParams(const std::vector< std::string >& params, size_t start)
+{
+  std::string res;
+  if (params.size() < start + 1)
+  {
+    return res;
+  }
+  res = params[start];
+  for (size_t i = start + 1; i < params.size(); ++i)
+  {
+    res += (" " + params[i]);
+  }
+  return res;
+}
+
 void chat::Server::executeFunc(std::shared_ptr< Session > session, std::string line)
 {
   using cmd_t = void (chat::Server::*)(std::shared_ptr< Session > session, const std::string& msg);
   std::unordered_map< std::string, cmd_t > cmds;
   cmds["post"] = &chat::Server::post;
+  cmds["send"] = &chat::Server::send;
 
   std::vector< std::string > params = splitWhitespace(line);
-  session->post(session, "[" + params[0] + "]\n");
-  session->post(session, "[" + params[1] + "]\n");
-  session->post(session, line);
-  if (params.size() == 0)
+  if (params.size() < 1)
   {
-    return;
-  }
-  if (params.size() < 2)
-  {
-    session->informationMsg("Usage: post <message>");
     return;
   }
   try
   {
-    (this->*cmds.at(params[1]))(session, params[2]);
+    (this->*cmds.at(params[1]))(session, getStrParams(params, 2));
   }
   catch(const std::out_of_range&)
   {
-    std::cerr << params[0] << '\n';
-    std::cerr << "Unknown command\n";
+    session->informationMsg("[ERROR] Unknown command");
   }
 }
 
@@ -110,10 +153,10 @@ void chat::Server::showUsers(std::shared_ptr< Session > session)
   size_t i = 1;
   for (const auto& client: clients_)
   {
-    std::stringstream message;
+    std::stringstream msg;
     error_code error_msg;
-    message << std::to_string(i) << ". " << client->id(error_msg) << "\n";
-    session->informationMsg(message.str());
+    msg << std::to_string(i) << ". " << client->id(error_msg) << "\n";
+    session->informationMsg(msg.str());
   }
 }
 

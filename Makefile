@@ -1,6 +1,6 @@
 CXX := g++
 CXXFLAGS := -std=c++17 -I/opt/homebrew/include -Wall -Wextra
-
+Q := @
 BUILD_DIR := lib
 SRC_DIR := src
 
@@ -10,20 +10,24 @@ DEPS := $(OBJS:.o=.d)
 
 TARGET := $(BUILD_DIR)/main
 
-all: $(TARGET)
+main: $(TARGET)
 
 $(TARGET): $(OBJS)
-	mkdir -p $(BUILD_DIR)
-	$(CXX) $(OBJS) -o $(TARGET)
+	$(Q)printf "[CXX] %s\n" "$<"
+	$(Q)mkdir -p $(BUILD_DIR)
+	$(Q)$(CXX) $(OBJS) -o $(TARGET)
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
-	mkdir -p $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) -MMD -c $< -o $@
-
--include $(DEPS)
+	$(Q)printf "[CXX] %s\n" "$<"
+	$(Q)mkdir -p $(BUILD_DIR)
+	$(Q)$(CXX) $(CXXFLAGS) -MMD -c $< -o $@
 
 run: $(TARGET)
-	./$(TARGET)
+	$(Q)printf "[RUNNING] %s\n" "$<"
+	$(Q)./$(TARGET)
 
 clean:
-	rm -rf $(BUILD_DIR)
+	$(Q)printf "[CLEAN] %s\n" "$<"
+	$(Q)rm -rf $(BUILD_DIR)
+
+-include $(DEPS)

@@ -6,26 +6,23 @@ chat::Session::Session(tcp::socket&& socket):
   socket_(std::move(socket))
 {}
 
-void chat::Session::informationMsg(const std::string& message)
+void chat::Session::informationMsg(const std::string& msg)
 {
   bool idle = outgoing_.empty();
-  std::stringstream msg;
-  msg << message << '\n';
-  outgoing_.push(msg.str());
-
+  outgoing_.push(msg + "\n");
   if (idle)
   {
     async_write();
   }
 }
 
-void chat::Session::post(std::shared_ptr< Session > session, const std::string& message)
+void chat::Session::post(std::shared_ptr< Session > session, const std::string& msg)
 {
   bool idle = outgoing_.empty();
-  std::stringstream msg;
+  std::stringstream message;
   error_code error;
-  msg << session->id(error) << ": " << message << '\n';
-  outgoing_.push(msg.str());
+  message << session->id(error) << ": " << msg << '\n';
+  outgoing_.push(message.str());
 
   if (idle)
   {

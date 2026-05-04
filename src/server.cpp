@@ -128,8 +128,9 @@ void chat::Server::executeFunc(std::shared_ptr< Session > session, std::string l
 {
   using cmd_t = void (chat::Server::*)(std::shared_ptr< Session > session, const std::string& msg);
   std::unordered_map< std::string, cmd_t > cmds;
-  cmds["post"] = &chat::Server::post;
-  cmds["send"] = &chat::Server::send;
+  cmds["/post"] = &chat::Server::post;
+  cmds["/send"] = &chat::Server::send;
+  cmds["/users"] = &chat::Server::showUsers;
 
   std::vector< std::string > params = splitWhitespace(line);
   if (params.size() < 1)
@@ -142,12 +143,12 @@ void chat::Server::executeFunc(std::shared_ptr< Session > session, std::string l
   }
   catch(const std::out_of_range&)
   {
-    session->informationMsg("[ERROR] Unknown command");
+    session->informationMsg("[ERROR] Unknown command: " + params[1]);
   }
 }
 
 
-void chat::Server::showUsers(std::shared_ptr< Session > session)
+void chat::Server::showUsers(std::shared_ptr< Session > session, const std::string&)
 {
   session->informationMsg("[Users]");
   size_t i = 1;
@@ -155,8 +156,9 @@ void chat::Server::showUsers(std::shared_ptr< Session > session)
   {
     std::stringstream msg;
     error_code error_msg;
-    msg << std::to_string(i) << ". " << client->id(error_msg) << "\n";
+    msg << std::to_string(i) << ". User" << client->id(error_msg).port();
     session->informationMsg(msg.str());
+    ++i;
   }
 }
 

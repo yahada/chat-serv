@@ -12,7 +12,7 @@ namespace chat
     void post(std::shared_ptr< Session > session, const std::string& message);
     void informationPost(const std::string& message);
     void send(std::shared_ptr< Session > session, const std::string& message);
-    void showUsers(std::shared_ptr< Session > session);
+    void showUsers(std::shared_ptr< Session > session, const std::string& msg);
     void executeFunc(std::shared_ptr< Session > session, std::string line);
   private:
     std::vector< std::string > splitWhitespace(const std::string& msg);
